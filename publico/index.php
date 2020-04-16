@@ -2,6 +2,7 @@
 // bruno borges paschoalinoto 2020
 
 $db = new SQLite3("../privado/banco.db");
+$db->busyTimeout(3000);
 
 $contribs = $db->querySingle("SELECT COUNT(*) FROM notas;");
 

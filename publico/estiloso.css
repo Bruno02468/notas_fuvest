@@ -9,3 +9,27 @@ select {
   margin-bottom: 0;
 }
 
+.formtab, .datable {
+	display: inline-table;
+}
+
+.datable thead tr th {
+  text-align: center;
+}
+
+.datable tbody {
+  font-family: monospace;
+  font-size: 1.1em;
+}
+
+.formtab tr td {
+	border: none;
+}
+
+.formtab tr td:first-child {
+	text-align: right;
+}
+
+.prehide {
+	display: none;
+}

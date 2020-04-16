@@ -13,6 +13,14 @@ CREATE TABLE "notas" (
 	"num_chamada"	INTEGER NOT NULL,
 	"tipo_chamada"	TEXT NOT NULL,
 	"ano"	INTEGER NOT NULL,
-	"posicao"	INTEGER NOT NULL,
 	PRIMARY KEY("id_nota" AUTOINCREMENT)
 );
+
+CREATE TABLE "config" (
+	"key"	TEXT NOT NULL UNIQUE,
+	"value"	TEXT,
+	PRIMARY KEY("key")
+);
+
+INSERT INTO config (key, value) VALUES ("grecaptcha_sitekey", NULL);
+INSERT INTO config (key, value) VALUES ("grecaptcha_secretkey", NULL);
