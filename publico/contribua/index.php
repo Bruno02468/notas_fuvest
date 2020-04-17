@@ -1,19 +1,8 @@
 <?php
 // bruno borges paschoalinoto 2020
-
-$db = new SQLite3("../../privado/banco.db");
-$db->busyTimeout(3000);
-
-$sitekey = $db->querySingle("SELECT value FROM config WHERE "
-  . "key=\"grecaptcha_sitekey\";");
-$secretkey = $db->querySingle("SELECT value FROM config WHERE "
-  . "key=\"grecaptcha_secretkey\";");
-$grecaptcha_enabled = $sitekey && $secretkey;
-
+$bm = file_get_contents("bookmarklet.txt");
 
 ?>
-
-
 <!DOCTYPE html>
 <html lang="pt-br">
   <head>
@@ -70,48 +59,31 @@ $grecaptcha_enabled = $sitekey && $secretkey;
           </strong>
         </h6>
       </div>
-			Para contribuir com sua nota, só informe suas credenciais abaixo.<br>
-			<br>
 			Relaxa, você <b>vai</b> poder rever <b>todas</b> as informações que
 			serão salvas antes de confirmar!<br>
       <br>
       <br>
-			<form action="confirma/" method="POST">
-				<table class="formtab">
-					<tbody>
-						<tr>
-							<td>Ano de aprovação:</td>
-							<td>
-								<select name="ano">
-									<option value="teste">Teste</option>
-									<option value="2020">2020</option>
-								</select>
-							</td>
-						</tr>
-						<tr>
-							<td>Login do app.fuvest.br:</td>
-							<td><input type="text" name="login"></td>
-						</tr>
-						<tr>
-							<td>Senha do app.fuvest.br:</td>
-							<td><input type="password" name="senha"></td>
-						</tr>
-					</tbody>
-				</table>
-<?php if ($grecaptcha_enabled) { ?>
-        <script src="https://www.google.com/recaptcha/api.js?render=<?php echo $sitekey; ?>"></script>
-        <script>
-        grecaptcha.ready(function() {
-          grecaptcha.execute("<?php echo $sitekey; ?>", {action: "prelogin"}).then(function(token) {
-            document.getElementById("gv3_token").value = token;
-          });
-        });
-        </script>
-        <input type="hidden" value="" name="grecaptcha_token" id="gv3_token">
-<?php } ?>
+			Para contribuir com suas notas, são só três passos rápidos:<br>
 			<br>
-			<input type="submit" value="Ver meus dados e confirmar">
-			</form>
+			<ol>
+				<li>
+					Salve
+					<a href="<?php echo $bm; ?>">este link</a>
+					nos seus favoritos.
+				</li>
+				<li>
+					Vá até
+					<a href="//app.fuvest.br/login" target="_blank">app.fuvest.br</a> e
+					apenas entre na sua área do candidato.
+				</li>
+				<li>
+					Uma vez na sua área do candidato, clique no favorito que você salvou.
+				</li>
+				<li>
+					Em alguns segundos, você vai voltar para este site, e vai poder
+					revisar seus resultados antes de enviar.
+				</li>
+			</ol>
       <br>
       <br>
       <br>

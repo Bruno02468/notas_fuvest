@@ -1,67 +1,66 @@
 <?php
 // bruno borges paschoalinoto 2020
 
-$status = "nostatus";
-$db = new SQLite3("../../../privado/banco.db");
-$db->busyTimeout(3000);
-
-// verificar se google recaptcha está atiado.
-$sitekey = $db->querySingle("SELECT value FROM config WHERE "
-  . "key=\"grecaptcha_sitekey\";");
-$secretkey = $db->querySingle("SELECT value FROM config WHERE "
-  . "key=\"grecaptcha_secretkey\";");
-$grecaptcha_enabled = $sitekey && $secretkey;
-$ip = $_SERVER["REMOTE_ADDR"];
-
-// se recaptcha estiver ativo, verificar a resposta.
-if ($grecaptcha_enabled and false) {
-	if (!isset($_POST["grecaptcha_token"])) {
-		$status = "grc_notoken";
-	} else {
-		$token = $_POST["grecaptcha_token"];
-		$url = "https://www.google.com/recaptcha/api/siteverify";
-		$params = array(
-			"secret" => $secretkey,
-			"response" => $token,
-			"remoteip" => $ip
-		);
-		$options = array(
-			"http" => array(
-				"header" => "Content-type: application/x-www-form-urlencoded\n",
-				"method" => "POST",
-				"content" => http_build_query($params)
-			)
-		);
-		$context = stream_context_create($options);
-		$result = file_get_contents($url, false, $context);
-		if (!$result) $status = "grc_noresponse";
-		else {
-			$response = json_decode($result, true);
-			if (!$response["success"]) $status = "grc_fail";
-			else if ($response["action"] != "prelogin") $status = "grc_action";
-			else if ($response["score"] < 0.5) $status = "grc_score";
-		}
-	}
+if (!isset($_GET["v"]) or !isset($_GET["d"])) {
+	header("Location: ..");
+	die();
 }
 
-$saida_json = "[]";
+function descomprimir($a) {
+	$e = escapeshellarg($a);
+	return shell_exec("../../../privado/descomprimir.py $e");
+}
 
-if ($status == "nostatus") {
-	// beleza, agora só puxar os dados.
-	if (!isset($_POST["ano"])) {
-		header("Location: ..");
-		die();
-	}
-	$aarg = escapeshellarg($_POST["ano"]);
-	$larg = escapeshellarg($_POST["login"]);
-	$parg = escapeshellarg($_POST["senha"]);
-	$saida_json = shell_exec("../../../privado/extrator.py $aarg $larg $parg");
-	$saida = json_decode($saida_json, true);
+try {
 
-	if (!strlen($saida_json) or !count($saida)) $status = "empty_array";
-	else {
-		$status = "ok";
+	$atual = 1;
+	$versao = $_GET["v"];
+	$totalidade_json = descomprimir($_GET["d"]);
+	$todos = json_decode($totalidade_json, true);
+	$linhas = array();
+	$db = new SQLite3("../../../privado/banco.db");
+	$db->busyTimeout(3000);
+
+	foreach ($todos as $ano => $fuv) {
+		try {
+			$n = $fuv["notas"];
+			$cn = $fuv["meu_edital"]["nome_curso_convocacao_chamada"];
+			if (!$cn) continue;
+			$car = explode(" - ", $fuv["meu_edital"]["nome_carreira_vestibular"]);
+			$cur = explode(" - ", $cn);
+			preg_match("/(\d+). (.+)/u",
+				$fuv["meu_edital"]["nome_resultado_situacao"], $mch);
+			$linha = array(
+				"gerais" => intval($n[0]["pontos_disciplina"]),
+				"fase2" => array(
+					floatval($n[1]["pontos_disciplina_decimal"]),
+					floatval($n[2]["pontos_disciplina_decimal"])
+				),
+				"redacao" => floatval($n[4]["pontos_disciplina_decimal"]),
+				"media" => floatval($n[3]["pontos_disciplina_decimal"]),
+				"cod_carreira" => intval($car[0]),
+				"nome_carreira" => $car[1],
+				"cod_curso" => intval($cur[0]),
+				"nome_curso" => $cur[1],
+				"num_chamada" => intval($mch[1]),
+				"tipo_chamada" => $mch[2],
+				"ano" => intval($ano)
+			);
+			$cpf = $fuv["meu_edital"]["cpf_candidato"];
+			$nc = $linha["cod_curso"];
+			$linha["hash"] = hash_pbkdf2("sha512", "$cpf-$ano-$nc", "$ano", 100000);
+			$h = $linha["hash"];
+			$dup = $db->querySingle("SELECT hash FROM notas WHERE hash='$h';");
+			if (!$dup) array_push($linhas, $linha);
+		} catch (Throwable $t) {
+			continue;
+		}
 	}
+
+} catch (Throwable $t) {
+	die("Foi encontrado um erro espetacular!<br>Se quiser ajudar, envie a URL e, "
+		. "se conseguir, os conteúdos desta página para bruno@oisumida.rs!");
+	var_dump($t);
 }
 
 ?>
@@ -98,101 +97,25 @@ if ($status == "nostatus") {
 					Obrigado por querer contribuir com sua nota!<br>
         </h6>
       </div>
-			<div class="prehide" id="nostatus">
-				Um erro desconhecido aconteceu...<br>
-				<br>
-				Se o erro persistir,
-				<a href="mailto:bruno@oisumida.rs">notifique-nos</a>!
-			</div>
-			<div class="prehide" id="grc_noresponse">
-				O Google não respondeu à nossa requisição para verificar se você é um
-				humano.<br>
-				<br>
-				Como não podemos comprovar que você é um ser humano,
-				<a href="..">tente novamente</a>.<br>
-				<br>
-				Se o erro persistir,
-				<a href="mailto:bruno@oisumida.rs">notifique-nos</a>!
-			</div>
-			<div class="prehide" id="grc_notoken">
-				Seu navegador não forneceu o token do Google reCAPTCHA v3.<br>
-				<br>
-				Como não podemos comprovar que você é um ser humano,
-				<a href="..">tente novamente</a>.
-			</div>
-			<div class="prehide" id="grc_fail">
-				O Google respondeu à nossa requisição para verificar se você é um
-				humano, mas indicou uma falha indeterminada.<br>
-				<br>
-				Como não podemos comprovar que você é um ser humano,
-				<a href="..">tente novamente</a>.<br>
-				<br>
-				Se o erro persistir,
-				<a href="mailto:bruno@oisumida.rs">notifique-nos</a>!
-			</div>
-			<div class="prehide" id="grc_action">
-				Seu navegador informou um valor incorreto ao Google reCAPTCHA v3.
-				<br>
-				Como não podemos comprovar que você é um ser humano,
-				<a href="..">tente novamente</a>.<br>
-				<br>
-				Se o erro persistir,
-				<a href="mailto:bruno@oisumida.rs">notifique-nos</a>!
-			</div>
-			<div class="prehide" id="grc_notoken">
-				Numa escala de 0 (robô) a 1 (humano), o Google te deu uma pontuação de
-				<?php if (isset($response) and isset($response["score"]))
-					echo $response["score"];
-				?>. Só aceitamos requisições com pontuações de 0.5 pra cima.<br>
-				<br>
-				Como não podemos comprovar que você é um ser humano,
-				<a href="..">tente novamente</a>.
-			</div>
-			<div class="prehide" id="empty_array">
-				O programa extrator não conseguiu puxar seus dados do site da Fuvest.
-				<br>
-				<br>
-				Verifique se suas credenciais estão corretas e
-				<a href="..">tente novamente</a>!<br>
-				<br>
-				Se você tiver <b>certeza</b> que estão certas e mesmo assim este erro
-				persistir,
-				<a href="mailto:bruno@oisumida.rs">notifique-nos</a>!
-			</div>
-			<div class="prehide" id="ok">
-				Seus dados foram extraídos com sucesso!<br>
-				<br>
-				Isso é <b>tudo</b> que vai ser salvo no nosso banco de dados, se você
-				autorizar, claro:
-				<br>
-				<br>
-				<table class="datable">
-					<thead>
-						<tr>
-							<th>Nome da coluna</th>
-							<th>Valor armazenado</th>
-						</tr>
-					</thead>
-					<tbody id="entry"></tbody>
-				</table>
-				<br>
-				<br>
-				<form method="POST" action="salvar">
-				<?php if ($grecaptcha_enabled) { ?>
-					<script src="https://www.google.com/recaptcha/api.js?render=<?php echo $sitekey; ?>"></script>
-					<script>
-					grecaptcha.ready(function() {
-						grecaptcha.execute("<?php echo $sitekey; ?>", {action: "postlogin"}).then(function(token) {
-							document.getElementById("gv3_token").value = token;
-						});
-					});
-					</script>
-					<input type="hidden" value="" name="grecaptcha_token" id="gv3_token">
-				<?php } ?>
-				<br>
-				<input type="submit" value="Ver meus dados e confirmar">
-				</form>
-			</div>
+			Seus dados foram extraídos com sucesso!<br>
+			<br>
+			Isso é <b>tudo</b> que vai ser salvo no nosso banco de dados, se você
+			autorizar, claro:
+			<br>
+			<br>
+			<table class="datable">
+				<thead>
+					<tr id="tha">
+						<th>Nome da coluna</th>
+					</tr>
+				</thead>
+				<tbody id="entry"></tbody>
+			</table>
+			<br>
+			Uma vez enviados, os dados são anônimos e não serão removidos.
+			<br>
+			<br>
+			<button onclick="concordo();">Concordo. Enviar!</button>
       <br>
       <br>
       <br>
@@ -218,8 +141,7 @@ if ($status == "nostatus") {
 		</div>
 		<script>
 			/* gerado automaticamente */
-			let dados = <?php echo $saida_json; ?>;
-			let status = <?php echo json_encode($status); ?>;
+			let linhas = <?php echo json_encode($linhas); ?>;
 		</script>
     <script src="confirma.js"></script>
   </body>
