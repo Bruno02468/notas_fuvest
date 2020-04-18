@@ -25,4 +25,6 @@ if (linhas.length) {
     }
     tabela.appendChild(tr);
   }
+} else {
+  location.assign("../oops/");
 }

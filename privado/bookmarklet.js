@@ -5,12 +5,11 @@
   // algoritmo de compressão LZString, minificado pra caber em ~1.5 kB
   // thanks, @pieroxy
   const _compress = function(o,r,n){if(null==o)return"";var e,t,i,s={},p={},u="",c="",a="",l=2,f=3,h=2,d=[],m=0,v=0;for(i=0;i<o.length;i+=1)if(u=o.charAt(i),Object.prototype.hasOwnProperty.call(s,u)||(s[u]=f++,p[u]=!0),c=a+u,Object.prototype.hasOwnProperty.call(s,c))a=c;else{if(Object.prototype.hasOwnProperty.call(p,a)){if(a.charCodeAt(0)<256){for(e=0;h>e;e++)m<<=1,v==r-1?(v=0,d.push(n(m)),m=0):v++;for(t=a.charCodeAt(0),e=0;8>e;e++)m=m<<1|1&t,v==r-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;h>e;e++)m=m<<1|t,v==r-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=a.charCodeAt(0),e=0;16>e;e++)m=m<<1|1&t,v==r-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}l--,0==l&&(l=Math.pow(2,h),h++),delete p[a]}else for(t=s[a],e=0;h>e;e++)m=m<<1|1&t,v==r-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;l--,0==l&&(l=Math.pow(2,h),h++),s[c]=f++,a=String(u)}if(""!==a){if(Object.prototype.hasOwnProperty.call(p,a)){if(a.charCodeAt(0)<256){for(e=0;h>e;e++)m<<=1,v==r-1?(v=0,d.push(n(m)),m=0):v++;for(t=a.charCodeAt(0),e=0;8>e;e++)m=m<<1|1&t,v==r-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;h>e;e++)m=m<<1|t,v==r-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=a.charCodeAt(0),e=0;16>e;e++)m=m<<1|1&t,v==r-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}l--,0==l&&(l=Math.pow(2,h),h++),delete p[a]}else for(t=s[a],e=0;h>e;e++)m=m<<1|1&t,v==r-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;l--,0==l&&(l=Math.pow(2,h),h++)}for(t=2,e=0;h>e;e++)m=m<<1|1&t,v==r-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;for(;;){if(m<<=1,v==r-1){d.push(n(m));break}v++}return d.join("")}
-  const n = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+  const e = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$";
   function comprimir(o) {
-    let b64 = function(o){if(null==o)return"";var r=_compress(o,6,function(o){return n.charAt(o)});switch(r.length%4){default:case 0:return r;case 1:return r+"===";case 2:return r+"==";case 3:return r+"="}}(o);
-    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "!");
+    return null==o?"":_compress(o,6,function(o){return e.charAt(o)})
   }
-  // a motivação? uma fuvest 2200 octetos. comprimindo, uns 700.
+  // a motivação? o tamanho da coisa na URL cai pela metade.
   // eu não quero estourar o limite de octetos em URLs tão cedo...
 
   // avisar o usuário
@@ -28,7 +27,7 @@
   const desejados_meu = [
     "ano", "nome_carreira_vestibular", "hash_identifiacao", "nome_edital",
     "nome_curso_convocacao_chamada", "nome_resultado_situacao", "cpf_candidato",
-    "numero_inscricao", "codigo_edital"
+    "codigo_edital"
   ];
 
   log("Iniciando bookmarklet.js versão " + versao + ".");
@@ -81,9 +80,9 @@
       obj = obj["resposta"][0];
       for (const key in obj)
         if (desejados_meu.indexOf(key) < 0) delete obj[key];
-      console.log(obj);
       envios[ano]["meu_edital"] = obj;
-      if (obj["nome_resultado_situacao"].indexOf("Convocado") > -1) {
+      let nrs = obj["nome_resultado_situacao"];
+      if (nrs && nrs.indexOf("Convocado") > -1) {
         puxar_nota(ano);
       }
     }).always(function() {
@@ -114,6 +113,22 @@
 
   // tudo pronto, vamo fugir
   function fuga() {
+    // tirar os anos com dados incompletos
+    for (let ano in envios) {
+      if (!envios.hasOwnProperty(ano)) continue;
+      if (!envios[ano]["notas"]) {
+        delete envios[ano];
+        continue;
+      }
+      let me = envios[ano]["meu_edital"];
+      for (let k in me) {
+        if (me.hasOwnProperty(k) && me[k] === null) {
+          delete envios[ano];
+          continue;
+        }
+      }
+    }
+    // comprimir e redirecionar!
     let qg = "//segredos.oisumida.rs/notas_fuvest_dev/contribua/confirma/";
     let j = JSON.stringify(envios);
     let enc = comprimir(j);
@@ -123,7 +138,6 @@
     a.innerText = "Se você não for redirecionado, clique aqui.";
     document.body.appendChild(a);
     location.assign(url);
-    console.log(envios);
   }
 
 })();

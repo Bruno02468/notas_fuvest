@@ -8,7 +8,7 @@ if (!isset($_GET["v"]) or !isset($_GET["d"])) {
 
 function descomprimir($a) {
 	$e = escapeshellarg($a);
-	return shell_exec("../../../privado/descomprimir.py $e");
+	return shell_exec("../../../privado/decomp.js $e");
 }
 
 try {
